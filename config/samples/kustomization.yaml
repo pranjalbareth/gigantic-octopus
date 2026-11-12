@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- runway_v1alpha1_environmenttemplate.yaml
+- runway_v1alpha1_environment.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

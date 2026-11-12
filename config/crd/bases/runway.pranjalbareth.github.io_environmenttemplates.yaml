@@ -1,0 +1,122 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: environmenttemplates.runway.pranjalbareth.github.io
+spec:
+  group: runway.pranjalbareth.github.io
+  names:
+    kind: EnvironmentTemplate
+    listKind: EnvironmentTemplateList
+    plural: environmenttemplates
+    shortNames:
+    - envtmpl
+    singular: environmenttemplate
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.image
+      name: Image
+      type: string
+    - jsonPath: .spec.maxTTL
+      name: MaxTTL
+      type: string
+    - jsonPath: .spec.maxLifetime
+      name: MaxLifetime
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: EnvironmentTemplate is the Schema for the environmenttemplates
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of EnvironmentTemplate
+            properties:
+              image:
+                description: image is the default container image.
+                minLength: 1
+                type: string
+              maxLifetime:
+                description: maxLifetime is the longest total TTL an environment can
+                  be extended to.
+                type: string
+              maxTTL:
+                description: maxTTL is the longest TTL allowed when an environment
+                  is created.
+                type: string
+              port:
+                description: port is the container port the Service exposes.
+                format: int32
+                maximum: 65535
+                minimum: 1
+                type: integer
+              quota:
+                description: quota caps what one environment may use.
+                properties:
+                  cpu:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: cpu is the total CPU for the namespace, for example
+                      "1".
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  memory:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: memory is the total memory for the namespace, for
+                      example "1Gi".
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  pods:
+                    description: pods is the largest number of pods in the namespace.
+                    format: int32
+                    maximum: 50
+                    minimum: 1
+                    type: integer
+                required:
+                - cpu
+                - memory
+                - pods
+                type: object
+              replicas:
+                default: 1
+                description: replicas is the number of pods. Defaults to 1.
+                format: int32
+                maximum: 10
+                minimum: 1
+                type: integer
+            required:
+            - image
+            - maxLifetime
+            - maxTTL
+            - port
+            - quota
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}

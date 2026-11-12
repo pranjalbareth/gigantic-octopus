@@ -1,0 +1,35 @@
+# Rules that need only the Environment itself are checked here, in the API
+# server, with no webhook call. Rules that need other objects (the template,
+# the owner's other Environments) live in the Go validating webhook.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: environment-rules
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["runway.pranjalbareth.github.io"]
+      apiVersions: ["v1alpha1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["environments"]
+  validations:
+  # The name becomes part of a namespace name (env-<name>), so it must be a
+  # DNS label: the API server already rejects a leading or trailing hyphen,
+  # and this rule adds "no dots" and the length limit.
+  - expression: "object.metadata.name.matches('^[a-z0-9][-a-z0-9]{1,38}[a-z0-9]$')"
+    message: "metadata.name must be 3-40 lowercase letters, digits or hyphens, and start and end with a letter or digit"
+  - expression: "has(object.spec.ttl) && duration(object.spec.ttl) >= duration('1m') && duration(object.spec.ttl) <= duration('168h')"
+    message: "spec.ttl must be between 1m and 168h"
+  - expression: "oldObject == null || object.spec.template == oldObject.spec.template"
+    message: "spec.template cannot be changed; create a new Environment instead"
+  - expression: "oldObject == null || !has(oldObject.spec.owner) || (has(object.spec.owner) && object.spec.owner == oldObject.spec.owner)"
+    message: "spec.owner cannot be changed"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: environment-rules
+spec:
+  policyName: environment-rules
+  validationActions: ["Deny"]

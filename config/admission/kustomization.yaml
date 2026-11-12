@@ -1,0 +1,5 @@
+resources:
+- environment_policy.yaml
+
+configurations:
+- kustomizeconfig.yaml

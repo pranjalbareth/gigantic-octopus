@@ -1,0 +1,14 @@
+apiVersion: runway.pranjalbareth.github.io/v1alpha1
+kind: EnvironmentTemplate
+metadata:
+  name: web-small
+spec:
+  image: nginx:1.27
+  port: 80
+  replicas: 1
+  quota:
+    cpu: "1"
+    memory: 1Gi
+    pods: 5
+  maxTTL: 72h
+  maxLifetime: 168h

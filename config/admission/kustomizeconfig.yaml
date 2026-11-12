@@ -1,0 +1,9 @@
+# Teach kustomize that a binding's policyName points at a policy, so the
+# namePrefix from config/default is applied to both sides.
+nameReference:
+- kind: ValidatingAdmissionPolicy
+  group: admissionregistration.k8s.io
+  fieldSpecs:
+  - kind: ValidatingAdmissionPolicyBinding
+    group: admissionregistration.k8s.io
+    path: spec/policyName

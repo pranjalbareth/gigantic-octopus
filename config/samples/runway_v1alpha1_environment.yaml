@@ -1,0 +1,10 @@
+apiVersion: runway.pranjalbareth.github.io/v1alpha1
+kind: Environment
+metadata:
+  name: pr-1423
+spec:
+  template: web-small
+  ttl: 8h
+  # owner is filled in from your login; leave it out.
+  # parameters:
+  #   image: ghcr.io/acme/api:pr-1423
