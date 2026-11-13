@@ -142,12 +142,10 @@ var _ = BeforeSuite(func() {
 	installAdmissionPolicy()
 })
 
-// installAdmissionPolicy applies config/admission/environment_policy.yaml, so
-// the suite tests the same CEL rules that ship, and waits until the API
-// server enforces them.
-func installAdmissionPolicy() {
+// applyFile creates every object in a YAML file under config/.
+func applyFile(dir, name string) {
 	GinkgoHelper()
-	f, err := os.Open(filepath.Join("..", "..", "..", "config", "admission", "environment_policy.yaml"))
+	f, err := os.Open(filepath.Join("..", "..", "..", "config", dir, name))
 	Expect(err).NotTo(HaveOccurred())
 	defer func() { _ = f.Close() }()
 
@@ -163,6 +161,15 @@ func installAdmissionPolicy() {
 		}
 		Expect(k8sClient.Create(ctx, obj)).To(Succeed())
 	}
+}
+
+// installAdmissionPolicy applies config/admission/environment_policy.yaml, so
+// the suite tests the same CEL rules that ship, and waits until the API
+// server enforces them.
+func installAdmissionPolicy() {
+	GinkgoHelper()
+	applyFile("admission", "environment_policy.yaml")
+	applyFile("rbac", "environment_user_role.yaml")
 
 	Eventually(func() string {
 		probe := &runwayv1alpha1.Environment{

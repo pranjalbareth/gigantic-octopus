@@ -12,3 +12,7 @@
 # Re-include Go module files
 !go.mod
 !go.sum
+
+# Re-include the portal's embedded pages, styles, script and fonts
+!internal/portal/templates/**
+!internal/portal/static/**

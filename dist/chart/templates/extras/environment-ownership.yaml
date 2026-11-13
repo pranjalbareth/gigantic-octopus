@@ -1,0 +1,24 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ include "runway.resourceName" (dict "suffix" "environment-ownership" "context" $) }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - runway.pranjalbareth.github.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - UPDATE
+      - DELETE
+      resources:
+      - environments
+  validations:
+  - expression: '!has(oldObject.spec.owner) || request.userInfo.username == oldObject.spec.owner
+      || authorizer.group(''runway.pranjalbareth.github.io'').resource(''environments'').check(''administer'').allowed()'
+    messageExpression: '''only the owner ('' + oldObject.spec.owner + '') can change
+      or delete this environment'''
+    reason: Forbidden

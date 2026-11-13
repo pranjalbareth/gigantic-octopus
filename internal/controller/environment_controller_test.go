@@ -469,7 +469,7 @@ var _ = Describe("Environment controller under a manager", Ordered, func() {
 		tmplName := uniqueName("web")
 		envName := uniqueName("live")
 		Expect(k8sClient.Create(ctx, newTemplate(tmplName))).To(Succeed())
-		Expect(k8sClient.Create(ctx, newEnvironment(envName, tmplName, 8*time.Second))).To(Succeed())
+		Expect(k8sClient.Create(ctx, newEnvironment(envName, tmplName, 12*time.Second))).To(Succeed())
 
 		deployKey := types.NamespacedName{Namespace: "env-" + envName, Name: envName}
 		Eventually(func() error {
@@ -492,6 +492,20 @@ var _ = Describe("Environment controller under a manager", Ordered, func() {
 			Expect(k8sClient.Get(ctx, deployKey, d)).To(Succeed())
 			return d.Spec.Template.Spec.Containers[0].Image
 		}, 5*time.Second, 100*time.Millisecond).Should(Equal("nginx:1.28"))
+
+		By("putting back a Service and a NetworkPolicy that someone deleted (drift repair)")
+		svc := &corev1.Service{}
+		Expect(k8sClient.Get(ctx, deployKey, svc)).To(Succeed())
+		oldUID := svc.UID
+		Expect(k8sClient.Delete(ctx, svc)).To(Succeed())
+		policyKey := types.NamespacedName{Namespace: deployKey.Namespace, Name: objectName}
+		Expect(k8sClient.Delete(ctx, &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Namespace: policyKey.Namespace, Name: policyKey.Name}})).To(Succeed())
+		Eventually(func(g Gomega) {
+			fresh := &corev1.Service{}
+			g.Expect(k8sClient.Get(ctx, deployKey, fresh)).To(Succeed())
+			g.Expect(fresh.UID).NotTo(Equal(oldUID))
+			g.Expect(k8sClient.Get(ctx, policyKey, &networkingv1.NetworkPolicy{})).To(Succeed())
+		}, 5*time.Second, 100*time.Millisecond).Should(Succeed())
 
 		By("deleting itself when the TTL runs out (RequeueAfter)")
 		Eventually(func() bool {

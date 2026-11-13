@@ -1,0 +1,27 @@
+# Self-service: every signed-in user may request Environments and browse
+# templates. What they may do to a particular Environment is narrowed by the
+# admission policies (owner-only changes) and the webhooks (limits).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: environment-user
+rules:
+- apiGroups: ["runway.pranjalbareth.github.io"]
+  resources: ["environments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["runway.pranjalbareth.github.io"]
+  resources: ["environmenttemplates"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: environment-user-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: environment-user
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:authenticated

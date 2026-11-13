@@ -29,7 +29,41 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
 metadata:
-  name: environment-rules
+  name: environment-rules-binding
 spec:
   policyName: environment-rules
+  validationActions: ["Deny"]
+---
+# Only the owner may change or delete an Environment. Anyone holding the
+# custom "administer" verb on environments is exempt: the controller (it adds
+# finalizers and deletes on expiry) and cluster admins (cluster-admin grants
+# every verb). Asking the authorizer keeps service-account names out of the
+# policy. This runs inside the API server, so it covers DELETE without
+# putting a webhook in the deletion path.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: environment-ownership
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["runway.pranjalbareth.github.io"]
+      apiVersions: ["v1alpha1"]
+      operations: ["UPDATE", "DELETE"]
+      resources: ["environments"]
+  validations:
+  - expression: >-
+      !has(oldObject.spec.owner)
+      || request.userInfo.username == oldObject.spec.owner
+      || authorizer.group('runway.pranjalbareth.github.io').resource('environments').check('administer').allowed()
+    messageExpression: "'only the owner (' + oldObject.spec.owner + ') can change or delete this environment'"
+    reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: environment-ownership-binding
+spec:
+  policyName: environment-ownership
   validationActions: ["Deny"]

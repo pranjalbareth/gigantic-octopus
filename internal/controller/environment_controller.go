@@ -61,7 +61,7 @@ type EnvironmentReconciler struct {
 	Recorder events.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=runway.pranjalbareth.github.io,resources=environments,verbs=get;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=runway.pranjalbareth.github.io,resources=environments,verbs=get;list;watch;update;patch;delete;administer
 // +kubebuilder:rbac:groups=runway.pranjalbareth.github.io,resources=environments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=runway.pranjalbareth.github.io,resources=environments/finalizers,verbs=update
 // +kubebuilder:rbac:groups=runway.pranjalbareth.github.io,resources=environmenttemplates,verbs=get;list;watch
@@ -354,8 +354,15 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&runwayv1alpha1.Environment{}).
+		// Watching everything we own means drift is repaired at once: delete
+		// the Service by hand and the next reconcile puts it back.
 		Owns(&corev1.Namespace{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&corev1.ResourceQuota{}).
+		Owns(&corev1.LimitRange{}).
+		Owns(&networkingv1.NetworkPolicy{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Watches(&runwayv1alpha1.EnvironmentTemplate{}, handler.EnqueueRequestsFromMapFunc(r.environmentsForTemplate)).
 		Named("environment").
 		Complete(r)

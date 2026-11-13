@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runway-portal-server
+  namespace: runway-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: portal
+        args:
+        - --auth=proxy
+        - "--user-prefix=github:"
+        # Loopback only: the sidecar below is the only thing that can connect.
+        - --listen=127.0.0.1:8080
+        # The kubelet cannot reach a loopback listener, so health is checked
+        # from inside the container instead of over the pod IP.
+        readinessProbe:
+          $patch: delete
+        livenessProbe:
+          $patch: delete
+      - name: oauth2-proxy
+        image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+        args:
+        - --provider=github
+        - --http-address=0.0.0.0:4180
+        - --upstream=http://127.0.0.1:8080
+        - --email-domain=*
+        - --redirect-url=http://localhost:4180/oauth2/callback
+        # Plain HTTP on localhost for port-forward use. Behind real TLS set
+        # this to true and change the redirect URL.
+        - --cookie-secure=false
+        - --skip-provider-button=true
+        - --reverse-proxy=false
+        envFrom:
+        - secretRef:
+            name: runway-portal-oauth
+        ports:
+        - containerPort: 4180
+          name: login
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: login
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        resources:
+          limits:
+            cpu: 250m
+            memory: 96Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi

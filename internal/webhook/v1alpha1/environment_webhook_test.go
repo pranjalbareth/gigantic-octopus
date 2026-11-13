@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,11 +42,12 @@ func uniqueName(prefix string) string {
 }
 
 // clientAs returns a client that the API server authenticates as the given
-// user (through impersonation), with full permissions.
+// user (through impersonation). The user is an ordinary one: all it may do
+// comes from the environment-user ClusterRole that ships in config/rbac.
 func clientAs(user string) client.Client {
 	GinkgoHelper()
 	userCfg := rest.CopyConfig(cfg)
-	userCfg.Impersonate = rest.ImpersonationConfig{UserName: user, Groups: []string{"system:masters"}}
+	userCfg.Impersonate = rest.ImpersonationConfig{UserName: user}
 	c, err := client.New(userCfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	return c
@@ -216,6 +218,44 @@ var _ = Describe("Environment admission", func() {
 			moved := env.DeepCopy()
 			moved.Spec.Template = other.Name
 			Expect(k8sClient.Update(ctx, moved)).To(MatchError(ContainSubstring("spec.template cannot be changed")))
+		})
+	})
+
+	Context("ownership policy (CEL, asks the authorizer)", func() {
+		It("lets only the owner or an administrator change or delete an Environment", func() {
+			env := newEnvironment(uniqueName("pr"), tmplName, time.Hour)
+			Expect(asUser.Create(ctx, env)).To(Succeed())
+			mallory := clientAs(uniqueName("mallory"))
+
+			By("refusing another user's extension")
+			theirs := env.DeepCopy()
+			theirs.Spec.TTL.Duration = 2 * time.Hour
+			err := mallory.Update(ctx, theirs)
+			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "got: %v", err)
+			Expect(err).To(MatchError(ContainSubstring("only the owner (" + user + ") can change or delete")))
+
+			By("refusing another user's delete")
+			err = mallory.Delete(ctx, env.DeepCopy())
+			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "got: %v", err)
+
+			By("allowing the owner to extend")
+			env.Spec.TTL.Duration = 2 * time.Hour
+			Expect(asUser.Update(ctx, env)).To(Succeed())
+
+			By("allowing an administrator (the controller holds the same verb) to update")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: env.Name}, env)).To(Succeed())
+			env.Finalizers = []string{runwayv1alpha1.Finalizer}
+			Expect(k8sClient.Update(ctx, env)).To(Succeed())
+			env.Finalizers = nil
+			Expect(k8sClient.Update(ctx, env)).To(Succeed())
+
+			By("allowing the owner to delete")
+			Expect(asUser.Delete(ctx, env)).To(Succeed())
+		})
+
+		It("does not let ordinary users touch templates", func() {
+			err := asUser.Create(ctx, newTemplate(uniqueName("sneaky")))
+			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "got: %v", err)
 		})
 	})
 

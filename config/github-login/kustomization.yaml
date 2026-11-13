@@ -1,0 +1,23 @@
+# Runway with real logins: GitHub through oauth2-proxy.
+#
+# The proxy runs as a sidecar in the portal pod and the portal listens on
+# 127.0.0.1 only, so the one way to reach it is through the login. The portal
+# trusts the identity headers because nothing else can send them.
+#
+# Before applying, create the OAuth app (callback http://localhost:4180/oauth2/callback)
+# and the secret; docs/github-login.md has the steps.
+#
+#   kustomize build config/github-login | kubectl apply -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../default
+patches:
+- path: portal_patch.yaml
+  target:
+    kind: Deployment
+    name: runway-portal-server
+- path: service_patch.yaml
+  target:
+    kind: Service
+    name: runway-portal

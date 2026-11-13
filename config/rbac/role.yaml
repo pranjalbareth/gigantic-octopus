@@ -75,6 +75,7 @@ rules:
   resources:
   - environments
   verbs:
+  - administer
   - delete
   - get
   - list

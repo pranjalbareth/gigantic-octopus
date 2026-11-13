@@ -1,0 +1,127 @@
+/* Runway portal. Colours come from an airfield: concrete, asphalt, taxiway
+   yellow, and the red and green of signal lights. */
+@font-face { font-family: "Barlow"; font-weight: 400; font-display: swap; src: url(/static/barlow-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap; src: url(/static/barlow-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-display: swap; src: url(/static/barlow-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 600; font-display: swap; src: url(/static/barlow-condensed-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; font-display: swap; src: url(/static/barlow-condensed-latin-700-normal.woff2) format("woff2"); }
+
+:root {
+  --concrete: #e9ecef;
+  --paper: #ffffff;
+  --ink: #14213d;
+  --asphalt: #2b3648;
+  --muted: #566176;
+  --line: #cfd5dc;
+  --taxi: #f5b700;
+  --go: #1b7a4c;
+  --stop: #b3261e;
+  --body: "Barlow", system-ui, sans-serif;
+  --display: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { font-size: 17px; }
+body { margin: 0; background: var(--concrete); color: var(--ink); font-family: var(--body); line-height: 1.45; }
+h1, h2, p, ul, fieldset { margin: 0; padding: 0; }
+ul { list-style: none; }
+fieldset { border: 0; }
+code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.86em; }
+:focus-visible { outline: 3px solid var(--taxi); outline-offset: 2px; }
+
+.demo-bar { background: var(--taxi); color: var(--ink); font-weight: 500; font-size: 0.88rem; padding: 0.4rem 1.5rem; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.5rem; background: var(--ink); color: #fff; }
+.wordmark { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-spacing: 0.01em; line-height: 1; color: inherit; text-decoration: none; }
+/* The runway threshold: the "piano keys" painted at the start of a runway. */
+.threshold { width: 1.7rem; height: 1.35rem; background: repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 6px); }
+.who { display: flex; align-items: center; gap: 1rem; font-size: 0.92rem; }
+.who form { margin: 0; }
+.top .link { color: #fff; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 2.5rem; max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); gap: 2rem; } }
+
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 2.3rem; line-height: 1.05; }
+.side-col h2 { font-family: var(--display); font-weight: 700; font-size: 1.55rem; margin: 0.45rem 0 1rem; }
+.count { color: var(--muted); font-weight: 500; white-space: nowrap; }
+.empty { background: var(--paper); border: 1px dashed var(--line); border-radius: 6px; padding: 1.25rem; color: var(--muted); max-width: 38rem; }
+
+.notice { padding: 0.7rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-weight: 500; border-left: 5px solid; background: var(--paper); }
+.notice.ok { border-color: var(--go); }
+.notice.error { border-color: var(--stop); color: var(--stop); }
+
+.envs { display: grid; gap: 1rem; }
+.env { background: var(--paper); border-radius: 6px; padding: 1.25rem 1.25rem 1rem; border: 1px solid var(--line); }
+.env.ending { opacity: 0.72; }
+.env-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.env h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.1; overflow-wrap: anywhere; }
+.env-meta { color: var(--muted); font-size: 0.9rem; }
+.env-clock { text-align: right; flex: none; }
+.remaining { display: block; font-family: var(--display); font-weight: 700; font-size: 2.1rem; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.remaining.soon { color: var(--stop); }
+
+.phase { display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 0.1rem 0.55rem; border-radius: 999px; border: 1.5px solid currentColor; }
+.phase-Ready { color: var(--go); }
+.phase-Pending, .phase-Provisioning { color: #8a6100; }
+.phase-Expiring, .phase-Deleting { color: var(--stop); }
+
+/* The strip is a runway seen from above. The yellow marker travels from the
+   threshold to the far end as the lifetime is used up. */
+.strip { position: relative; height: 1.5rem; margin-top: 1rem; border-radius: 3px; background: var(--asphalt); overflow: hidden; --used: 0%; }
+.strip::before { content: ""; position: absolute; left: 0.9rem; right: 0.9rem; top: 50%; height: 2px; margin-top: -1px; background: repeating-linear-gradient(90deg, #fff 0 1.1rem, transparent 1.1rem 2rem); opacity: 0.85; }
+.strip-used { position: absolute; inset: 0 auto 0 0; width: var(--used); background: rgba(233, 236, 239, 0.42); }
+.strip-marker { position: absolute; top: 0; bottom: 0; left: var(--used); width: 5px; margin-left: -2.5px; background: var(--taxi); }
+.strip-ends { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.35rem; font-size: 0.84rem; color: var(--muted); }
+.reason { margin-top: 0.75rem; color: #8a6100; font-size: 0.92rem; }
+
+.env-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem 1.5rem; margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--line); }
+.forward { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.forward code { color: var(--muted); overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-left: auto; }
+
+button { font: inherit; font-weight: 500; cursor: pointer; border-radius: 5px; padding: 0.4rem 0.85rem; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink); }
+button:hover { background: var(--concrete); }
+button:disabled { opacity: 0.55; cursor: progress; }
+button.primary { background: var(--ink); color: #fff; width: 100%; padding: 0.65rem 1rem; font-weight: 600; margin-top: 1.25rem; }
+button.primary:hover { background: var(--asphalt); }
+button.danger { border-color: var(--stop); color: var(--stop); }
+button.danger:hover { background: var(--stop); color: #fff; }
+button.link { border: 0; background: none; padding: 0; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); font-size: 0.9rem; }
+
+.start, .login form { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 1.25rem; }
+label, legend { display: block; font-weight: 600; font-size: 0.92rem; margin: 1rem 0 0.3rem; }
+.start > label:first-child, .login form > label:first-child { margin-top: 0; }
+.optional { font-weight: 400; color: var(--muted); }
+input:not([type="radio"]) { width: 100%; font: inherit; padding: 0.5rem 0.65rem; border: 1.5px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); }
+input:not([type="radio"]):focus { border-color: var(--ink); }
+.help { font-size: 0.84rem; color: var(--muted); margin-top: 0.3rem; }
+.template { display: flex; gap: 0.6rem; align-items: flex-start; font-weight: 400; margin: 0 0 0.4rem; padding: 0.6rem 0.7rem; border: 1.5px solid var(--line); border-radius: 5px; cursor: pointer; }
+.template:has(input:checked) { border-color: var(--ink); background: #f6f7f9; }
+.template input { margin-top: 0.3rem; accent-color: var(--ink); }
+.template-body { display: grid; }
+.template-name { font-weight: 600; }
+.template-meta { font-size: 0.84rem; color: var(--muted); }
+
+.login { max-width: 25rem; margin: 12vh auto 0; padding: 0 1.5rem; }
+.login .wordmark { margin-bottom: 2.5rem; }
+.login h1 { margin-bottom: 0.5rem; }
+.login > p:not(.wordmark) { color: var(--muted); margin-bottom: 1.5rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .strip-used, .strip-marker { transition: width 1s linear, left 1s linear; }
+}
+
+@media (max-width: 560px) {
+  h1 { font-size: 1.9rem; }
+  .top { padding: 0.8rem 1rem; }
+  .layout { padding: 1.5rem 1rem 3rem; }
+  .who { gap: 0.75rem; white-space: nowrap; }
+  .who span { display: none; }
+  .env-head { flex-direction: column; gap: 0.6rem; }
+  .env-clock { text-align: left; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 0.3rem; }
+  .remaining { font-size: 1.9rem; }
+  .strip-ends { flex-direction: column; gap: 0; }
+  .actions { margin-left: 0; }
+}

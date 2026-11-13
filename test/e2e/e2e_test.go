@@ -470,6 +470,12 @@ spec:
 			scaleController(0)
 			Expect(time.Now()).To(BeTemporally("<", expiresAt), "the controller must be down before expiry for this test to mean anything")
 
+			By("failing closed: with the webhook down, a new Environment is refused, not waved through")
+			cmd := exec.Command("kubectl", "apply", "-f", "-")
+			cmd.Stdin = strings.NewReader(environment("e2e-while-down", "10m"))
+			_, err = utils.Run(cmd)
+			Expect(err).To(HaveOccurred(), "creating an Environment must fail while the webhook is unavailable")
+
 			By("waiting until well past expiry with nothing running")
 			time.Sleep(time.Until(expiresAt.Add(30 * time.Second)))
 
@@ -490,6 +496,69 @@ spec:
 				_, err = kubectl("get", "namespace", "env-e2e-crash")
 				g.Expect(err).To(HaveOccurred())
 			}, 3*time.Minute, 2*time.Second).Should(Succeed())
+		})
+
+		It("gives the owner edit rights in their own namespace only, and lets only the owner delete", func() {
+			apply(environment("e2e-rbac", "10m"))
+			Eventually(func(g Gomega) {
+				phase, err := phaseOf("e2e-rbac")
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(phase).To(Equal("Ready"))
+			}).Should(Succeed())
+			owner, err := kubectl("get", "environment", "e2e-rbac", "-o", "jsonpath={.spec.owner}")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(owner).NotTo(BeEmpty())
+
+			canI := func(as, namespace string, what ...string) string {
+				args := append([]string{"auth", "can-i"}, what...)
+				args = append(args, "--as="+as)
+				if namespace != "" {
+					args = append(args, "-n", namespace)
+				}
+				// can-i exits 1 for "no"; only the printed answer matters.
+				out, _ := exec.Command("kubectl", args...).CombinedOutput()
+				return strings.TrimSpace(string(out))
+			}
+			By("checking a made-up user that holds nothing but what Runway grants")
+			Expect(canI("e2e-stranger", "env-e2e-rbac", "create", "pods")).To(HavePrefix("no"))
+			Expect(canI("e2e-stranger", "", "create", "environments.runway.pranjalbareth.github.io")).To(HavePrefix("yes"))
+			Expect(canI("e2e-stranger", "", "create", "environmenttemplates.runway.pranjalbareth.github.io")).To(HavePrefix("no"))
+
+			By("a stranger failing to delete or extend someone else's environment")
+			_, err = kubectl("delete", "environment", "e2e-rbac", "--as=e2e-stranger")
+			Expect(err).To(HaveOccurred())
+			_, err = kubectl("patch", "environment", "e2e-rbac", "--type=merge", "-p", `{"spec":{"ttl":"20m"}}`, "--as=e2e-stranger")
+			Expect(err).To(HaveOccurred())
+
+			By("a second user's environment giving them edit in their namespace and nothing in the first")
+			cmd := exec.Command("kubectl", "apply", "--as=e2e-second", "-f", "-")
+			cmd.Stdin = strings.NewReader(environment("e2e-rbac-2", "10m"))
+			_, err = utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func(g Gomega) {
+				g.Expect(canI("e2e-second", "env-e2e-rbac-2", "create", "deployments.apps")).To(HavePrefix("yes"))
+			}).Should(Succeed())
+			Expect(canI("e2e-second", "env-e2e-rbac", "create", "deployments.apps")).To(HavePrefix("no"))
+			Expect(canI("e2e-second", "env-e2e-rbac-2", "create", "rolebindings.rbac.authorization.k8s.io")).To(HavePrefix("no"),
+				"edit must not let an owner grant themselves more")
+
+			_, err = kubectl("delete", "environment", "e2e-rbac-2", "--as=e2e-second", "--wait=true", "--timeout=120s")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("runs the portal and serves its sign-in page", func() {
+			_, err := kubectl("rollout", "status", "deployment/runway-portal-server", "-n", namespace, "--timeout=120s")
+			Expect(err).NotTo(HaveOccurred())
+
+			_, _ = kubectl("delete", "pod", "portal-probe", "-n", namespace, "--ignore-not-found")
+			Eventually(func(g Gomega) {
+				_, _ = kubectl("delete", "pod", "portal-probe", "-n", namespace, "--ignore-not-found", "--wait=true")
+				out, err := kubectl("run", "portal-probe", "-n", namespace, "--restart=Never", "--rm", "-i", "--quiet",
+					"--image=curlimages/curl:latest",
+					"--overrides", fmt.Sprintf(`{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"portal-probe","image":"curlimages/curl:latest","command":["curl","-fsS","http://runway-portal.%s.svc/login"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}`, namespace))
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(out).To(ContainSubstring("Who are you?"))
+			}, 3*time.Minute, 5*time.Second).Should(Succeed())
 		})
 
 		It("keeps working when the leader is killed", func() {

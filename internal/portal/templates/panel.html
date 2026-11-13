@@ -1,0 +1,67 @@
+{{define "notice"}}{{if .Error}}<p class="notice error" role="alert">{{.Error}}</p>{{else if .Notice}}<p class="notice ok">{{.Notice}}</p>{{end}}{{end}}
+
+{{/* "panel" is what actions and refreshes return: the panel itself, plus the
+     notice swapped in out of band when there is something to say. A plain
+     refresh says nothing, so it leaves the last notice on screen. */}}
+{{define "panel"}}
+{{template "panel-body" .}}
+{{if or .Error .Notice}}<div id="notice" hx-swap-oob="innerHTML">{{template "notice" .}}</div>{{end}}
+{{end}}
+
+{{define "panel-body"}}
+<section id="panel" hx-get="/environments" hx-trigger="refresh" hx-swap="outerHTML">
+  <div class="panel-head">
+    <h1>Your environments</h1>
+    <p class="count">{{len .Envs}} of {{.Limit}} in use</p>
+  </div>
+
+  {{if not .Envs}}
+  <p class="empty">Nothing is running. Start an environment and it will be ready in about a minute, in a namespace of its own.</p>
+  {{end}}
+
+  <ul class="envs">
+  {{range .Envs}}
+    <li class="env{{if .Ending}} ending{{end}}" data-name="{{.Name}}" data-created="{{rfc3339 .Created}}" {{if .HasExpiry}}data-expires="{{rfc3339 .Expires}}"{{end}}>
+      <div class="env-head">
+        <div>
+          <h2>{{.Name}}</h2>
+          <p class="env-meta">from <span class="mono">{{.Template}}</span></p>
+        </div>
+        <div class="env-clock">
+          <span class="phase phase-{{.Phase}}">{{.Phase}}</span>
+          <span class="remaining" data-remaining>{{if .Ending}}Deleting{{else if .HasExpiry}}&nbsp;{{else}}Starting{{end}}</span>
+        </div>
+      </div>
+
+      <div class="strip" role="img" aria-label="Time used so far">
+        <span class="strip-used"></span>
+        <span class="strip-marker"></span>
+      </div>
+      <div class="strip-ends">
+        <span>Started <time data-clock="{{rfc3339 .Created}}">{{rfc3339 .Created}}</time></span>
+        {{if .HasExpiry}}<span>Deletes itself <time data-clock="{{rfc3339 .Expires}}">{{rfc3339 .Expires}}</time></span>{{end}}
+      </div>
+
+      {{if .Reason}}<p class="reason">{{.Reason}}</p>{{end}}
+
+      <div class="env-foot">
+        {{if .Forward}}
+        <div class="forward">
+          <code>{{.Forward}}</code>
+          <button class="link" type="button" data-copy="{{.Forward}}">Copy</button>
+        </div>
+        {{end}}
+        {{if not .Ending}}
+        <div class="actions">
+          <button type="button" hx-post="/environments/{{.Name}}/extend" hx-vals='{"by":"1h"}' hx-target="#panel" hx-swap="outerHTML">Add 1 hour</button>
+          <button type="button" hx-post="/environments/{{.Name}}/extend" hx-vals='{"by":"4h"}' hx-target="#panel" hx-swap="outerHTML">Add 4 hours</button>
+          <button type="button" class="danger" hx-delete="/environments/{{.Name}}" hx-target="#panel" hx-swap="outerHTML"
+                  hx-confirm="Delete {{.Name}} now? Its namespace and everything in it will be removed.">Delete</button>
+        </div>
+        {{end}}
+      </div>
+    </li>
+  {{end}}
+  </ul>
+</section>
+{{end}}

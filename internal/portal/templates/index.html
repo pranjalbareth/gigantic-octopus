@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runway</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%2314213d%27/%3E%3Cpath d=%27M8 7v18M13 7v18M19 7v18M24 7v18%27 stroke=%27%23fff%27 stroke-width=%272.6%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  {{if .DevLogin}}<p class="demo-bar">Demo sign-in is on: there are no passwords, and anyone can sign in as anyone.</p>{{end}}
+  <header class="top">
+    <a class="wordmark" href="/"><span class="threshold" aria-hidden="true"></span>Runway</a>
+    <div class="who">
+      <span>Signed in as <strong>{{.User}}</strong></span>
+      {{if .DevLogin}}<form method="post" action="/logout"><button class="link" type="submit">Sign out</button></form>{{end}}
+    </div>
+  </header>
+
+  <main class="layout">
+    <div class="main-col">
+      <div id="notice" aria-live="polite">{{template "notice" .}}</div>
+      {{template "panel-body" .}}
+    </div>
+
+    <aside class="side-col">
+      <h2>Start an environment</h2>
+      {{if .Templates}}
+      <form class="start" hx-post="/environments" hx-target="#panel" hx-swap="outerHTML" hx-disabled-elt="find button"
+            hx-on::after-request="if (event.detail.successful && !document.querySelector('#notice .error')) { this.elements.name.value = ''; this.elements.image.value = ''; }">
+        <label for="name">Name</label>
+        <input id="name" name="name" required minlength="3" maxlength="40" pattern="[a-z0-9][\-a-z0-9]*[a-z0-9]"
+               placeholder="pr-1423" autocomplete="off" spellcheck="false" aria-describedby="name-help">
+        <p class="help" id="name-help">Lowercase letters, digits and hyphens. Your namespace will be <code>env-<span id="name-echo">name</span></code>.</p>
+
+        <fieldset>
+          <legend>Template</legend>
+          {{range $i, $t := .Templates}}
+          <label class="template">
+            <input type="radio" name="template" value="{{$t.Name}}" {{if eq $i 0}}checked{{end}} required>
+            <span class="template-body">
+              <span class="template-name">{{$t.Name}}</span>
+              <span class="template-meta">{{$t.CPU}} CPU, {{$t.Memory}} memory, up to {{$t.Pods}} pods</span>
+              <span class="template-meta">Lives up to {{$t.MaxTTL}}, extendable to {{$t.MaxLifetime}}</span>
+            </span>
+          </label>
+          {{end}}
+        </fieldset>
+
+        <label for="ttl">Lifetime</label>
+        <input id="ttl" name="ttl" required value="8h" list="ttl-options" autocomplete="off" spellcheck="false" aria-describedby="ttl-help">
+        <datalist id="ttl-options"><option value="30m"><option value="1h"><option value="4h"><option value="8h"><option value="24h"></datalist>
+        <p class="help" id="ttl-help">It deletes itself when this runs out. You can add time later.</p>
+
+        <label for="image">Image <span class="optional">optional</span></label>
+        <input id="image" name="image" placeholder="Uses the template's image" autocomplete="off" spellcheck="false">
+
+        <button class="primary" type="submit">Start environment</button>
+      </form>
+      {{else}}
+      <p class="empty">No templates exist yet. Ask a platform admin to create an EnvironmentTemplate.</p>
+      {{end}}
+    </aside>
+  </main>
+</body>
+</html>
